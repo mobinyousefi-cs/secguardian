@@ -17,9 +17,22 @@ import logging
 import time
 from pathlib import Path
 from dataclasses import asdict
+from typing import Any
+from enum import Enum
 
 from ..config import Config
 from ..events import SecurityEvent
+
+
+class EnumJSONEncoder(json.JSONEncoder):
+    """
+    Custom JSON encoder that knows how to serialize Enum objects.
+    """
+
+    def default(self, o: Any) -> Any:
+        if isinstance(o, Enum):
+            return o.name
+        return super().default(o)
 
 
 class BaseReporter:
@@ -35,8 +48,16 @@ class JSONReporter(BaseReporter):
 
     def handle_event(self, event: SecurityEvent) -> None:
         try:
+            data = asdict(event)
             with open(self.path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(asdict(event), ensure_ascii=False) + "\n")
+                f.write(
+                    json.dumps(
+                        data,
+                        ensure_ascii=False,
+                        cls=EnumJSONEncoder,  # <-- اینجا هم
+                    )
+                    + "\n"
+                )
         except Exception as exc:
             self.logger.error(f"JSONReporter error: {exc}")
 
